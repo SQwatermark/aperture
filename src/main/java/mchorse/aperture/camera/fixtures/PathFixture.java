@@ -15,8 +15,10 @@ import mchorse.aperture.camera.data.Position;
 import mchorse.aperture.camera.fixtures.KeyframeFixture.Easing;
 import mchorse.aperture.camera.fixtures.KeyframeFixture.KeyframeChannel;
 import mchorse.aperture.camera.fixtures.KeyframeFixture.KeyframeInterpolation;
+import mchorse.mclib.math.functions.limit.Min;
 import mchorse.mclib.utils.Interpolation;
 import mchorse.mclib.utils.Interpolations;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.MathHelper;
 
@@ -602,6 +604,10 @@ public class PathFixture extends AbstractFixture
             roll = func.interpolate(p1.angle.roll, p2.angle.roll, progress);
             fov = func.interpolate(p1.angle.fov, p2.angle.fov, progress);
         }
+
+        //TODO：解除视角锁定，以后打算设置成一个选项
+        yaw = Minecraft.getMinecraft().player.rotationYaw;
+        pitch = Minecraft.getMinecraft().player.rotationPitch;
 
         angle.set(yaw, pitch, roll, fov);
     }

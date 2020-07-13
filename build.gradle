@@ -43,10 +43,19 @@ minecraft
     replace "%MCLIB%", project.mclib
 }
 
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+
 dependencies 
 {
     compile files("run/libs/mclib-${mclib}-${project.minecraft.version}-dev.jar")
     compile files("run/libs/Minema-${minema}-${project.minecraft.version}-dev.jar")
+    deobfCompile('mchorse:mclib-2.0.1-1.12.2')
+    deobfCompile('info:Minema-3.5.2-1.12.2')
+
 }
 
 eclipse
@@ -106,191 +115,6 @@ processResources
     }
 }
 
-/* Build language files from YML */
-
-task buildLangFiles {
-    doLast {
-        def help = file("help")
-        def flatten
-        
-        /**
-         * Flattens the map
-         */
-        flatten = { Map map, Map original, String prefix ->
-            for (entry in original.entrySet())
-            {
-                def value = entry.getValue();
-                
-                if (value instanceof String)
-                {
-                    map.put(prefix + entry.getKey(), value)
-                }
-                else if (value instanceof Map)
-                {
-                    flatten(map, value, prefix + entry.getKey() + ".")
-                }
-                else
-                {
-                    map.put(prefix + entry.getKey(), value.toString())
-                }
-            }
-        }
-        
-        /**
-         * Process the string read from the YML.
-         * 
-         * This method replaces new line symbols to escaped new line symbols
-         * and processes {} formatting to § Minecraft formatting.
-         */
-        def processString = { String str ->
-            return str.replace("\n", "\\n").replaceAll('\\{([\\w\\d_]+)\\}', '§$1')
-        }
-        
-        /**
-         * Compile YML file's contents to ini string
-         */
-        def compile = {File file ->
-            println "- Converting ${file.getName()} YML file..."
-
-            def output = "\n\n# " + file.getName() + "\n";
-            def yaml = new org.yaml.snakeyaml.Yaml()
-            def map = yaml.load(file.text)
-            def flat_map = new HashMap()
-            
-            flatten(flat_map, map, "")
-            
-            for (entry in flat_map.entrySet())
-            {
-                output += "${entry.getKey()}=${processString(entry.getValue())}\n";
-            }
-            
-            return output
-        }
-        
-        /**
-         * Convert given langauge dir from YML to ini
-         */
-        def convert = { File lang_dir ->
-            /* Forge directive that allows \n symbols to be allowed in the chat */
-            def output = "#PARSE_ESCAPES"
-            def output_file = file("src/main/resources/assets/${project.archivesBaseName}/lang/${lang_dir.getName()}.lang")
-            
-            for (file in lang_dir.listFiles())
-            {
-                if (file.getName().endsWith(".yml"))
-                {
-                    output += compile(file)
-                }
-            }
-            
-            def parentFile = output_file.getParentFile()
-            
-            if (!parentFile.exists())
-            {
-                parentFile.mkdirs();
-            }
-            
-            def writer = new PrintWriter(output_file)
-            
-            writer.println(output.trim())
-            writer.close()
-        }
-        
-        if (help.exists())
-        {
-            for (lang_dir in help.listFiles())
-            {
-                if (lang_dir.isDirectory())
-                {
-                    println "Converting ${lang_dir.getName()}"
-                    convert(lang_dir)
-                    println "Converted ${lang_dir.getName()} to language file"
-                }
-            }
-        }
-        else
-        {
-            println "Directory 'help' is not found!"
-        }
-    }
-}
-
-tasks.processResources.dependsOn('buildLangFiles')
-
-/* Comparing keys */
-task compareLangFiles {
-    doLast {
-        def help = file("src/main/resources/assets/${project.archivesBaseName}/lang/")
-        def parse = { File file ->
-            def map = new HashMap()
-            def splits = file.text.split("\n");
-
-            for (split in splits) {
-                def index = split.indexOf("=")
-
-                if (index == -1) {
-                    continue
-                }
-
-                map.put(split.substring(0, index), true)
-            }
-
-            return map
-        }
-
-        if (!help.exists()) {
-            return
-        }
-
-        def en = file("${help.getAbsolutePath()}/en_US.lang")
-        def en_map = parse(en)
-
-        for (lang_file in help.listFiles()) {
-            if (!lang_file.name.endsWith(".lang") || lang_file.name.startsWith("en_US")) {
-                continue
-            }
-
-            def lang_map = parse(lang_file)
-            def missing = new ArrayList()
-            def extra = new ArrayList()
-
-            for (key in en_map.keySet()) {
-                if (!lang_map.containsKey(key)) {
-                    missing.add(key)
-                }
-            }
-
-            for (key in lang_map.keySet()) {
-                if (!en_map.containsKey(key)) {
-                    extra.add(key)
-                }
-            }
-
-            missing.sort()
-            extra.sort()
-
-            print("\n")
-
-            if (!missing.isEmpty() || !extra.isEmpty()) {
-                if (!missing.isEmpty()) {
-                    print("Language file ${lang_file.getName()} misses following keys:\n")
-
-                    for (key in missing) {
-                        print("- ${key}\n")
-                    }
-                }
-
-                if (!extra.isEmpty()) {
-                    print("Language file ${lang_file.getName()} has additional keys:\n")
-
-                    for (key in extra) {
-                        print("- ${key}\n")
-                    }
-                }
-            }
-            else {
-                print("Language file ${lang_file.getName()} fully matches ${en.getName()}!\n")
-            }
-        }
-    }
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
 }
